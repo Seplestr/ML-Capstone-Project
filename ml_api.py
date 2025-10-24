@@ -4,11 +4,13 @@ import os
 import sys
 import traceback
 import pandas as pd
+import numpy as np # Import numpy for handling unseen categories
 
 app = Flask(__name__)
 
 def load_model_and_encoders():
     """Loads the model and label encoders, exiting if files are not found."""
+    # Assuming 'models_vect' is in the same directory as your Flask app script
     model_path = 'models_vect/model.pkl'
     encoders_path = 'models_vect/vectorizer.pkl' # This file contains the dictionary of LabelEncoders
 
@@ -27,14 +29,115 @@ def load_model_and_encoders():
         print(f"--- FATAL ERROR --- \nFailed to load .pkl files: {e}", file=sys.stderr)
         sys.exit(1)
 
-model, label_encoders = load_model_and_encoders()
+# Load the model and encoders when the application starts
+loaded_model, loaded_label_encoders = load_model_and_encoders()
 
-# Get the feature names from the model, if available. This helps ensure column order.
-try:
-    model_feature_names = model.feature_names_in_
-except AttributeError:
-    model_feature_names = None
-    print("Warning: Could not get feature names from model. Ensure column order is correct.")
+# Define the expected features and column types as used during training
+# Ensure these match the features used when training the model in your notebook
+model_features = ['age', 'weight_kg', 'potential', 'skill_moves', 'work_rate', 'body_type',
+                  'pace', 'shooting', 'passing', 'defending', 'physic', 'player_traits']
+
+numerical_cols = ['age', 'weight_kg', 'potential', 'skill_moves', 'pace', 'shooting', 'passing', 'defending', 'physic']
+categorical_cols = ['work_rate', 'body_type', 'player_traits']
+
+
+def preprocess_and_predict(player_data):
+    """
+    Preprocesses new player data and makes a prediction using the loaded model.
+
+    Args:
+        player_data (dict): A dictionary containing the new player's attributes.
+
+    Returns:
+        int: The prediction result (0 or 1).
+        str: An error message if preprocessing fails.
+    """
+    try:
+        # Create a DataFrame for the new player, ensuring all model_features are present
+        # Fill missing required features with a default value (e.g., 0)
+        # Ensure the input data keys match model_features keys, fill_value handles missing data points but keys must exist
+        new_player_df = pd.DataFrame([player_data]).reindex(columns=model_features, fill_value=0)
+
+
+        # Preprocess numerical columns
+        for col in numerical_cols:
+            # Convert to numeric, coerce errors to NaN, then fill NaN with 0
+            new_player_df[col] = pd.to_numeric(new_player_df[col], errors='coerce').fillna(0)
+
+
+        # Preprocess categorical columns using loaded encoders
+        for col in categorical_cols:
+            if col in loaded_label_encoders:
+                le = loaded_label_encoders[col]
+                # Fill missing values and ensure string type
+                new_player_df[col] = new_player_df[col].fillna('Unknown_Category').astype(str)
+
+                # Handle categories not seen during training gracefully
+                # Check for unseen labels and add them to the encoder's classes before transforming
+                unseen_labels = new_player_df[col][~new_player_df[col].isin(le.classes_)]
+                if not unseen_labels.empty:
+                    le.classes_ = np.append(le.classes_, unseen_labels.unique())
+                    print(f"Added unseen labels to encoder for '{col}': {unseen_labels.unique()}", file=sys.stderr)
+
+
+                # Transform the categorical column
+                new_player_df[col] = le.transform(new_player_df[col])
+
+            else:
+                # Handle case where label encoder is missing for a column (should not happen if vectorizer.pkl is correct)
+                print(f"Warning: Label encoder not found for column '{col}'. Filling with 0.", file=sys.stderr)
+                new_player_df[col] = 0 # Fallback
+
+
+        # Ensure the columns are in the same order as the training data features (reindex already did this)
+        new_df_processed = new_player_df[model_features]
+
+
+        # Make prediction using the loaded model
+        prediction = loaded_model.predict(new_df_processed)[0]
+
+        # Try to get prediction probabilities if available (useful for debugging)
+        proba = None
+        try:
+            if hasattr(loaded_model, 'predict_proba'):
+                proba = loaded_model.predict_proba(new_df_processed)[0].tolist()
+        except Exception:
+            # non-fatal if model doesn't support predict_proba
+            proba = None
+
+        # Calculate a model-informed 'overall_calculated' score using the model's feature importances
+        overall_calc = None
+        try:
+            skill_cols = ['pace', 'shooting', 'passing', 'defending', 'physic', 'potential']
+            if hasattr(loaded_model, 'feature_importances_'):
+                fi = np.array(loaded_model.feature_importances_)
+                # Map feature importances to the skill columns in the same order as model_features
+                weights = []
+                for col in skill_cols:
+                    if col in model_features:
+                        idx = model_features.index(col)
+                        weights.append(fi[idx])
+                    else:
+                        weights.append(0.0)
+                weights = np.array(weights, dtype=float)
+                if weights.sum() > 0:
+                    vals = new_df_processed[skill_cols].astype(float).values[0]
+                    overall_calc = float(np.dot(vals, weights) / weights.sum())
+                    overall_calc = round(overall_calc, 1)
+        except Exception:
+            overall_calc = None
+
+        # Log processed input (single-row) for debugging
+        print(f"Processed input for prediction: {new_df_processed.to_dict(orient='records')[0]}", file=sys.stderr)
+
+        return int(prediction), proba, overall_calc  # Return prediction, probability (or None), and overall_calc
+
+    except Exception as e:
+        # Log the full traceback for debugging
+        traceback_str = traceback.format_exc()
+        print(f"Error during preprocessing or prediction:\n{traceback_str}", file=sys.stderr)
+        return None, str(e) # Return no prediction and the error message
+
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -43,111 +146,49 @@ def predict():
         if not data:
             return jsonify({'error': 'Invalid input: No data provided.'}), 400
 
-        # Convert incoming JSON data to a pandas DataFrame
-        # The model expects a 2D array, so we create a DataFrame with a single row
-        new_data_df = pd.DataFrame([data])
+        # Use the preprocess_and_predict function
+        result = preprocess_and_predict(data)
 
-        # --- Get the original feature names before any modifications ---
-        if model_feature_names is None:
-            return jsonify({'error': "Model is missing 'feature_names_in_'. Cannot process request."}), 500
-        original_features = list(model_feature_names)
+        # result expected as (prediction, proba, overall_calc) or (None, error_str)
+        if not isinstance(result, tuple) or len(result) < 2:
+            return jsonify({'error': 'Unexpected result from prediction function.'}), 500
 
-        # --- Start of Preprocessing ---
-        # Replicate the 'work_rate' split from your training notebook
-        if 'work_rate' in new_data_df.columns:
-            print("Splitting 'work_rate' column.")
-            work_rate_split = new_data_df['work_rate'].str.split('/ ', expand=True)
-            # Robustly handle cases where the split might not produce two columns
-            new_data_df['attacking_work_rate'] = work_rate_split[0].str.strip()
-            if work_rate_split.shape[1] > 1:
-                new_data_df['defensive_work_rate'] = work_rate_split[1].str.strip()
-            else:
-                new_data_df['defensive_work_rate'] = work_rate_split[0].str.strip() # Default to the same if only one is provided
-            # Explicitly drop the original 'work_rate' column after splitting
-            new_data_df = new_data_df.drop(columns=['work_rate'])
-        else:
-            # If work_rate is not provided, we must add the split columns with a default value (e.g., 'Medium')
-            new_data_df['attacking_work_rate'] = 'Medium'
-            new_data_df['defensive_work_rate'] = 'Medium'
+        prediction = result[0]
+        proba_or_error = result[1]
+        overall_calc = result[2] if len(result) > 2 else None
 
-        # Replicate the 'player_traits' splitting and encoding (assuming multi-label or individual encoding)
-        if 'player_traits' in new_data_df.columns:
-            print("Processing 'player_traits' column.", file=sys.stderr)
-            traits_raw = new_data_df['player_traits'].iloc[0]
-            input_traits_list = [trait.strip() for trait in traits_raw.split(',') if trait.strip()]
+        # If an error occurred, preprocess_and_predict returns (None, <error str>, None)
+        if prediction is None and isinstance(proba_or_error, str):
+            return jsonify({'error': f'Preprocessing or prediction failed: {proba_or_error}'}), 500
 
-            # Identify all trait-related columns that the model expects from model_feature_names
-            # This assumes trait columns are named like 'trait_Finesse Shot'
-            expected_trait_columns = [col for col in original_features if col.startswith('trait_')]
+        proba = proba_or_error if not isinstance(proba_or_error, str) else None
 
-            for expected_col in expected_trait_columns:
-                trait_name = expected_col.replace('trait_', '') # Extract original trait name
-                if expected_col in label_encoders: # Check if we have an encoder for this specific trait column
-                    encoder = label_encoders[expected_col]
-                    try:
-                        if trait_name in input_traits_list:
-                            # If the input trait is present, encode it as 'present' (or 1)
-                            new_data_df[expected_col] = encoder.transform(['present'])
-                        else:
-                            # If the input trait is absent, encode it as 'absent' (or 0)
-                            new_data_df[expected_col] = encoder.transform(['absent'])
-                    except ValueError as ve:
-                        # This means 'present' or 'absent' is an unseen label for this specific trait encoder
-                        error_detail = f"Configuration Error: Unseen label ('present' or 'absent') for trait '{trait_name}' in column '{expected_col}': {ve}. Please check encoder setup in your notebook."
-                        print(f"--- Prediction Error ---\n{error_detail}", file=sys.stderr)
-                        return jsonify({'error': error_detail}), 400
-                else:
-                    # If there's no encoder for an expected trait column, it's a configuration issue
-                    print(f"Warning: No LabelEncoder found for expected trait column '{expected_col}'. Setting to 0 (absent).", file=sys.stderr)
-                    new_data_df[expected_col] = 0 # Default to absent if no encoder is found
+        # Format the response based on prediction (0 or 1)
+        response_message = "Player is Eligible to Play" if prediction == 1 else "Player is Not Eligible to Play"
+        resp = {'prediction': int(prediction), 'message': response_message}
+        if proba is not None:
+            resp['probability'] = proba
+        if overall_calc is not None:
+            resp['overall_calculated'] = overall_calc
+        return jsonify(resp)
 
-
-        # Preprocess the categorical columns using the loaded label encoders
-        for column in label_encoders:
-            if column in new_data_df.columns:
-                # Access the specific encoder for the column
-                encoder = label_encoders[column]
-                try:
-                    new_data_df[column] = encoder.transform(new_data_df[column])
-                except ValueError as ve:
-                    # Handle unseen labels more gracefully
-                    error_detail = f"Unseen label(s) in column '{column}': {ve}. Please ensure input matches training data categories."
-                    print(f"--- Prediction Error ---\n{error_detail}", file=sys.stderr)
-                    return jsonify({'error': error_detail}), 400
-            else:
-                print(f"Warning: Column '{column}' not found in input data, skipping encoding.")
-        
-        # --- End of Preprocessing ---
-
-        # Reorder DataFrame columns to match the order the model was trained on
-        try:
-            print("Reordering columns to match model training order.", file=sys.stderr)
-            new_data_df = new_data_df[original_features]
-        except KeyError as e:
-            missing_cols = set(original_features) - set(new_data_df.columns)
-            error_detail = f"DataFrame is missing required columns after preprocessing: {list(missing_cols)}. Original error: {e}"
-            return jsonify({'error': error_detail}), 500
-
-        prediction = model.predict(new_data_df)
-
-        # Convert the NumPy data type to a native Python type for JSON serialization
-        output = prediction[0]
-
-        # Use .item() for single numeric values, otherwise convert to a standard string
-        if hasattr(output, 'item'):
-            bot_response = output.item()
-        else:
-            bot_response = str(output)
-
-        return jsonify({'response': bot_response})
     except Exception as e:
-        print(f"--- An unexpected error occurred during prediction ---", file=sys.stderr)
-        print(f"Type of error: {type(e)}", file=sys.stderr)
-        print(f"Error object: {repr(e)}", file=sys.stderr)
-        print(f"Error message (str(e)): {str(e)}", file=sys.stderr)
-        traceback.print_exc(file=sys.stderr) # Print full traceback to stderr
-        print("-----------------------------------------------------", file=sys.stderr)
-        return jsonify({'error': str(e)}), 500
+        # Catch any unexpected errors in the route handler itself
+        traceback_str = traceback.format_exc()
+        print(f"An unexpected error occurred in /predict route:\n{traceback_str}", file=sys.stderr)
+        return jsonify({'error': f'An unexpected error occurred: {e}'}), 500
+
 
 if __name__ == '__main__':
-    app.run(port=5000, debug=True)
+    # Ensure the models_vect directory exists
+    if not os.path.exists('models_vect'):
+        os.makedirs('models_vect')
+        print("Created 'models_vect' directory. Please place 'model.pkl' and 'vectorizer.pkl' inside.")
+        sys.exit(1) # Exit as model files are missing
+
+    # You would typically run this with a production-ready server like Gunicorn
+    # app.run(debug=True) # Use debug=True for development
+    print("Flask app ready. Use a production WSGI server like Gunicorn to run it.")
+    # Example command to run with Gunicorn: gunicorn -w 4 your_app_file_name:app
+    app.run(debug=True, host='0.0.0.0', port=5000)
+    
