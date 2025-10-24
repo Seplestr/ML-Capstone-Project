@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Player Eligibility Predictor</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="form-container">
+        <div class="form-header">
+            <h1>Player Eligibility Predictor</h1>
+        </div>
+        <form id="player-stats-form">
+            <div class="form-grid">
+                <div class="form-group"><label for="age">Age:</label><input type="number" id="age" name="age" value="25" required></div>
+                <div class="form-group"><label for="height_cm">Height (cm):</label><input type="number" id="height_cm" name="height_cm" value="180" required></div>
+                <div class="form-group"><label for="weight_kg">Weight (kg):</label><input type="number" id="weight_kg" name="weight_kg" value="75" required></div>
+                <div class="form-group"><label for="pace">Pace:</label><input type="number" id="pace" name="pace" value="85" required></div>
+                <div class="form-group"><label for="shooting">Shooting:</label><input type="number" id="shooting" name="shooting" value="82" required></div>
+                <div class="form-group"><label for="passing">Passing:</label><input type="number" id="passing" name="passing" value="78" required></div>
+                <div class="form-group"><label for="dribbling">Dribbling:</label><input type="number" id="dribbling" name="dribbling" value="88" required></div>
+                <div class="form-group"><label for="defending">Defending:</label><input type="number" id="defending" name="defending" value="45" required></div>
+                <div class="form-group"><label for="physic">Physic:</label><input type="number" id="physic" name="physic" value="70" required></div>
+                <div class="form-group">
+                    <label for="work_rate">Work Rate:</label>
+                    <input type="text" id="work_rate" name="work_rate" value="High/ Medium" placeholder="e.g., High/ Medium" required>
+                </div>
+                <div class="form-group">
+                    <label for="body_type">Body Type:</label>
+                    <input type="text" id="body_type" name="body_type" value="Normal (170-185)" placeholder="e.g., Normal (170-185)" required>
+                </div>
+                 <div class="form-group full-width">
+                    <label for="player_traits">Player Traits:</label>
+                    <input type="text" id="player_traits" name="player_traits" value="Finesse Shot, Long Shot Taker (AI)" placeholder="e.g., Finesse Shot, Speed Dribbler (AI)" required>
+                </div>
+            </div>
+            <button type="submit" id="predict-button">Predict Eligibility</button>
+        </form>
+        <div class="prediction-result" id="prediction-result">
+            <!-- Prediction will be shown here -->
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
