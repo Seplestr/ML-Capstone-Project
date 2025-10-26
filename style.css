@@ -1,3 +1,150 @@
+
+/*
+  Dashboard background — sleek futuristic matte gradients
+  - Adds layered soft blues/purples/teals
+  - Includes faint geometric shapes and subtle circuit-like light trails
+  - Uses only CSS (gradients, pseudo-elements) so there are no external assets
+  - Apply by adding `class="dashboard-bg"` to the page's <body> or rely on default body styles below
+*/
+
+body.dashboard-bg, body {
+    /* lighter soft dashboard background for improved readability */
+    background-color: #f2f7fb; /* soft pale base */
+    background-image:
+        radial-gradient(closest-side at 12% 18%, rgba(59,130,246,0.06), transparent 22%),
+        radial-gradient(closest-side at 82% 78%, rgba(124,58,237,0.05), transparent 22%),
+        linear-gradient(180deg, rgba(245,249,255,1) 0%, rgba(238,246,252,1) 40%, rgba(245,250,255,1) 100%);
+    background-attachment: fixed;
+    background-size: cover;
+    color: #0b1220; /* darker text for contrast on light background */
+    font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    font-size: 15px;
+    position: relative;
+    overflow-x: hidden;
+}
+
+/* Layered soft glows and subtle texture */
+body.dashboard-bg::before,
+body::before {
+    content: '';
+    pointer-events: none;
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    /* soft, very subtle colored blobs for depth (lightened) */
+    background-image:
+        radial-gradient(circle at 12% 18%, rgba(59,130,246,0.06) 0%, rgba(59,130,246,0.02) 12%, transparent 28%),
+        radial-gradient(circle at 82% 78%, rgba(124,58,237,0.05) 0%, rgba(124,58,237,0.02) 10%, transparent 28%),
+        radial-gradient(circle at 50% 40%, rgba(16,185,129,0.04) 0%, rgba(16,185,129,0.01) 8%, transparent 22%);
+    filter: blur(28px) saturate(110%);
+    mix-blend-mode: normal;
+    opacity: 0.95;
+}
+
+/* Faint circuit-like grid + thin glowing trails that slowly drift */
+body.dashboard-bg::after,
+body::after {
+    content: '';
+    pointer-events: none;
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    /* subtle fine texture for a tech feel, toned down for light background */
+    background-image:
+        repeating-linear-gradient(90deg, rgba(11,18,32,0.02) 0 1px, transparent 1px 36px),
+        linear-gradient(120deg, rgba(99,102,241,0.02), rgba(45,212,191,0.01));
+    background-blend-mode: overlay;
+    filter: blur(3px) contrast(1.01);
+    animation: bg-drift 24s linear infinite;
+    opacity: 0.9;
+}
+
+/* Thin animated light trails (pseudo elements inside a full-width fixed element) */
+.bg-trails {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+}
+.bg-trails::before,
+.bg-trails::after {
+    content: '';
+    position: absolute;
+    width: 160%;
+    height: 220px;
+    left: -30%;
+    top: 10%;
+    background: linear-gradient(90deg, transparent 0%, rgba(99,102,241,0.035) 30%, rgba(124,58,237,0.04) 50%, rgba(16,185,129,0.03) 70%, transparent 100%);
+    transform: rotate(-6deg);
+    filter: blur(28px) saturate(120%);
+    opacity: 0.6;
+    mix-blend-mode: screen;
+    animation: trail-move 16s linear infinite;
+}
+.bg-trails::after {
+    top: 62%;
+    transform: rotate(8deg);
+    animation-duration: 22s;
+    opacity: 0.45;
+}
+
+@keyframes trail-move {
+    0% { transform: translateX(-6%) rotate(-6deg); }
+    50% { transform: translateX(6%) rotate(-6deg); }
+    100% { transform: translateX(-6%) rotate(-6deg); }
+}
+
+@keyframes bg-drift {
+    0% { background-position: 0% 0%; }
+    50% { background-position: 20% 10%; }
+    100% { background-position: 0% 0%; }
+}
+
+/* subtle geometric accents: soft outlined shapes */
+.bg-accents {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+}
+.bg-accents::before {
+    content: '';
+    position: absolute;
+    right: 6%;
+    top: 10%;
+    width: 420px;
+    height: 420px;
+    border-radius: 16%;
+    background: conic-gradient(from 90deg at 50% 50%, rgba(124,58,237,0.03), rgba(59,130,246,0.025), rgba(16,185,129,0.02));
+    filter: blur(22px);
+    opacity: 0.55;
+}
+.bg-accents::after {
+    content: '';
+    position: absolute;
+    left: 6%;
+    bottom: 8%;
+    width: 320px;
+    height: 320px;
+    transform: rotate(12deg);
+    border-radius: 20%;
+    background: radial-gradient(circle at 30% 30%, rgba(99,102,241,0.03), transparent 40%);
+    filter: blur(18px);
+    opacity: 0.6;
+}
+
+/* small noise overlay for matte finish */
+.bg-noise {
+    position: fixed; inset: 0; z-index: -1; pointer-events: none; mix-blend-mode: overlay; opacity: 0.025;
+    background-image: radial-gradient(rgba(11,18,32,0.015) 1px, transparent 1px);
+    background-size: 8px 8px;
+}
+
+/* utility: easy apply helper when you want this background */
+.use-dashboard-bg { position: relative; }
+
+/* end background section */
+
 /* Chat container styles */
 .chat-container {
     max-width: 800px;
@@ -101,19 +248,29 @@
 
 /* Form and predictor styles */
 .form-container {
-    max-width: 900px;
-    margin: 24px auto;
-    background: #fff;
-    border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-    padding: 20px;
+    max-width: 980px;
+    margin: 36px auto;
+    background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
+    border-radius: 14px;
+    box-shadow: 0 12px 40px rgba(2,6,23,0.25), inset 0 1px 0 rgba(255,255,255,0.04);
+    padding: 26px;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    backdrop-filter: blur(8px) saturate(120%);
+    -webkit-backdrop-filter: blur(8px) saturate(120%);
+    border: 1px solid rgba(255,255,255,0.08);
 }
 
 .form-header h1 {
-    margin: 0 0 12px 0;
-    font-size: 22px;
-    color: #222;
+    margin: 0 0 6px 0;
+    font-size: 26px;
+    color: #0f172a;
+    letter-spacing: -0.4px;
+}
+
+.form-header .subtitle {
+    margin: 0 0 14px 0;
+    color: rgba(15,23,42,0.7);
+    font-size: 13px;
 }
 
 .form-grid {
@@ -154,6 +311,8 @@
     cursor: pointer;
 }
 
+#predict-button:hover{ transform: translateY(-2px); box-shadow: 0 10px 30px rgba(37,99,235,0.18); }
+
 .prediction-result {
     margin-top: 18px;
     min-height: 44px;
@@ -168,24 +327,28 @@
     align-items: center;
     gap: 12px;
     font-weight: 600;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+    box-shadow: 0 10px 30px rgba(2,6,23,0.12), inset 0 -2px 8px rgba(255,255,255,0.02);
+    backdrop-filter: blur(6px);
 }
 
 .result-banner.eligible {
-    background: linear-gradient(90deg,#10b981,#059669); /* green */
+    background: linear-gradient(90deg, rgba(16,185,129,0.96), rgba(5,150,105,0.9)); /* green */
 }
 
 .result-banner.not-eligible {
-    background: linear-gradient(90deg,#ef4444,#dc2626); /* red */
+    background: linear-gradient(90deg, rgba(239,68,68,0.96), rgba(220,38,38,0.92)); /* red */
 }
 
 .result-banner .badge {
     width: 36px;
     height: 36px;
     border-radius: 999px;
-    background: rgba(255,255,255,0.16);
+    background: rgba(255,255,255,0.12);
     display:flex;align-items:center;justify-content:center;font-size:18px;
+    box-shadow: 0 6px 18px rgba(2,6,23,0.12);
 }
+.result-banner .badge svg { display:block; }
+.result-banner .badge path { filter: drop-shadow(0 2px 6px rgba(0,0,0,0.25)); }
 
 .result-subtext {
     display:block;
@@ -194,55 +357,76 @@
     font-weight:500;
 }
 
+/* reasons list styling */
+.result-reasons {
+    margin-top:8px;
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.02);
+    border-radius: 8px;
+    color: rgba(255,255,255,0.95);
+    font-weight:500;
+}
+
+.result-reasons ul { margin:6px 0 0 18px; }
+.result-reasons li { margin-bottom:4px; }
+
 .prediction-result.error { color: #b91c1c; font-weight:600 }
 
 @media (max-width:700px){
     .form-grid{ grid-template-columns: repeat(1,1fr); }
 }
 
-/* Overall circle */
+/* Overall meter card (replaces circle) */
 .overall-circle {
-    width: 140px;
-    height: 140px;
-    border-radius: 999px;
+    width: 320px;
+    min-height: 110px;
+    border-radius: 14px;
     display:flex;
     align-items:center;
-    justify-content:center;
-    flex-direction:column;
-    color:#fff;
+    justify-content:space-between;
+    padding: 14px 18px;
+    color:#0b1220;
     font-weight:700;
     position: relative;
     margin-left: 16px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(250,250,250,0.98));
+    box-shadow: 0 10px 30px rgba(2,6,23,0.08), inset 0 1px 0 rgba(255,255,255,0.6);
+    border: 1px solid rgba(0,0,0,0.04);
 }
 
+/* linear progress bar as a left-side accent; width controlled by --pct */
 .overall-circle::before {
-    /* animated ring background using conic-gradient controlled by --pct */
     content: '';
     position: absolute;
-    inset: 0;
-    border-radius: 999px;
-    padding: 8px; /* thickness */
-    background: conic-gradient(var(--ring-color, #06b6d4) calc(var(--pct, 0) * 1%), rgba(0,0,0,0.06) 0);
-    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 12px), black calc(100% - 11px));
-    mask: radial-gradient(farthest-side, transparent calc(100% - 12px), black calc(100% - 11px));
-    transition: background 1s ease-out, transform 0.6s ease;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    border-top-left-radius: 14px;
+    border-bottom-left-radius: 14px;
+    background: linear-gradient(180deg, var(--ring-color, #06b6d4), rgba(0,0,0,0.06));
+    transform-origin: left center;
+    /* animate a filling effect by using a gradient stop with var(--pct) */
+    background-image: linear-gradient(180deg, var(--ring-color, #06b6d4) var(--pct, 0%), rgba(0,0,0,0.06) var(--pct, 0%));
+    transition: background-image 900ms ease-out;
+    z-index: 0;
 }
 
 .overall-circle .inner {
     position: relative;
-    width: calc(100% - 24px);
-    height: calc(100% - 24px);
-    border-radius: 999px;
-    background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
-    display:flex;align-items:center;justify-content:center;flex-direction:column;
-    box-shadow: inset 0 2px 8px rgba(0,0,0,0.08);
+    display:flex;
+    align-items:center;
+    gap: 12px;
+    z-index: 2;
 }
 
-.overall-circle .value { font-size: 34px; }
-.overall-circle .label { font-size: 12px; opacity:0.95; margin-top:4px }
-.overall-container { display:flex; align-items:center; gap:18px; margin-top:18px; }
+.overall-details { display:flex; flex-direction:column; }
+.overall-value { font-size: 36px; color: #0b1220; line-height:1; }
+.overall-label { font-size: 12px; color: #475569; margin-top:6px; }
+.overall-meter { width: 140px; height: 12px; background: linear-gradient(90deg,#e6eef9,#f1f5f9); border-radius: 999px; overflow:hidden; }
+.overall-meter .bar { height:100%; width:0%; background: linear-gradient(90deg,var(--ring-color,#06b6d4), rgba(16,185,129,0.8)); transition: width 900ms ease-out; }
 
-/* color variants: these set --ring-color for the conic gradient */
+/* color variants */
 .overall-circle.green { --ring-color: #10b981; }
 .overall-circle.orange { --ring-color: #f97316; }
 .overall-circle.red { --ring-color: #ef4444; }
@@ -254,6 +438,15 @@
     align-items:center;
     gap:18px;
     width:100%;
+}
+
+/* container that holds the banner and the overall meter side-by-side */
+.overall-container {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-top: 18px;
+    flex-wrap: wrap; /* allow stacking on small widths */
 }
 
 /* subtle enter animation for banner */
